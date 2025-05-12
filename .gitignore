@@ -1,6 +1,5 @@
 .env
 
-audio/
-bin/
+build/
 
 *.new

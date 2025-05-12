@@ -1,4 +1,4 @@
-package YT
+package audioProcessor
 
 import (
 	"encoding/binary"
@@ -50,7 +50,7 @@ func (p *MyParser) HandleDate(_ mkvparse.ElementID, _ time.Time, _ mkvparse.Elem
 	return nil
 }
 
-func ConvertWebmToDca(audio io.ReadCloser, out io.WriteCloser) error {
+func convertWebmToDca(audio io.ReadCloser, out io.WriteCloser) error {
 	handler := MyParser{w: out}
 	err := mkvparse.Parse(audio, &handler)
 	if err != nil {
