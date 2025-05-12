@@ -1,0 +1,6 @@
+.env
+
+audio/
+bin/
+
+*.new
