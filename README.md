@@ -1,5 +1,4 @@
-# Toujoubot:
-# Discord YouTube Audio Downloader and Player Bot
+# Toujoubot: Discord YouTube Audio Downloader and Player Bot
 
 This Discord bot scans messages for "-p" followed by a YouTube link or search query, then downloads the audio using yt-dlp, extracts Opus frames from the WebM file, saves them as a DCA file, and plays the audio in the user's voice channel.
 
