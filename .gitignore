@@ -1,5 +1,7 @@
 .env
 .DS_Store
 build/
-
+audio/
+cmd/
+*.exe
 *.new

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -24,26 +25,95 @@ type Processor struct {
 }
 
 // NewProcessor creates a new audio processor
-func NewProcessor(ytDlpPath string) *Processor {
+func NewProcessor() *Processor {
+	var ytDlpPath string
+	switch runtime.GOOS {
+	case "windows":
+		ytDlpPath = "cmd/yt-dlp/yt-dlp.exe"
+		default:
+		ytDlpPath = "cmd/yt-dlp/yt-dlp"
+	}
 	return &Processor{
 		YtDlpPath:  ytDlpPath,
 		AudioCache: make(map[string]string),
 	}
 }
 
-// UpdateYtDlp updates the yt-dlp executable
 func (p *Processor) UpdateYtDlp() {
-	fmt.Println("Updating yt-dlp...")
-	// Check if yt-dlp exists
-	if _, err := os.Stat(p.YtDlpPath); os.IsNotExist(err) {
-		log.Printf("Warning: yt-dlp not found at %s. Please make sure it's installed.", p.YtDlpPath)
-		return
+	// Determine proper download URL based on platform and architecture
+	var url string
+	switch runtime.GOOS {
+	case "windows":
+		if runtime.GOARCH == "amd64" {
+			url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
+		}
+	case "linux":
+		switch runtime.GOARCH {
+		case "amd64":
+			url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux"
+		case "arm64":
+			url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux_aarch64"
+		}
+	case "darwin":
+		url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
+	default:
+		log.Fatalf("Unsupported platform: %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
-	cmd := exec.Command(p.YtDlpPath, "-U")
+	if url == "" {
+		log.Fatalf("No download URL found for platform: %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+
+	// Create the directory if needed
+	dir := filepath.Dir(p.YtDlpPath)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		log.Fatalf("Failed to create directory %s: %v", dir, err)
+	}
+
+	// Check and download yt-dlp if missing
+	if _, err := os.Stat(p.YtDlpPath); os.IsNotExist(err) {
+		fmt.Println("yt-dlp not found, downloading appropriate binary...")
+
+		resp, err := http.Get(url)
+		if err != nil {
+			log.Fatalf("Failed to download yt-dlp: %v", err)
+		}
+		defer resp.Body.Close()
+
+		out, err := os.Create(p.YtDlpPath)
+		if err != nil {
+			log.Fatalf("Failed to create yt-dlp file: %v", err)
+		}
+
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			log.Fatalf("Failed to save yt-dlp binary: %v", err)
+		}
+		out.Close()
+		
+		// Set executable permissions on non-Windows systems
+		if runtime.GOOS != "windows" {
+			err = os.Chmod(p.YtDlpPath, 0755)
+			if err != nil {
+				log.Fatalf("Failed to set executable permission: %v", err)
+			}
+		}
+
+		fmt.Printf("yt-dlp downloaded successfully to %s\n", p.YtDlpPath)
+	}
+
+	// Get absolute path for exec.Command to work correctly
+	absPath, err := filepath.Abs(p.YtDlpPath)
+	if err != nil {
+		log.Fatalf("Failed to get absolute path of yt-dlp: %v", err)
+	}
+
+	fmt.Printf("Checking for yt-dlp updates at: %s\n", absPath)
+	cmd := exec.Command(absPath, "-U")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Error updating yt-dlp: %s\n%s", err, string(output))
+		log.Printf("Error updating yt-dlp: %v\nOutput:\n%s", err, string(output))
 		return
 	}
 	fmt.Printf("yt-dlp update result: %s\n", string(output))
@@ -100,9 +170,17 @@ func (p *Processor) ProcessYouTubeAudio(query, videoID string) (io.Reader, strin
 	}
 
 	// Check if yt-dlp exists
-	if _, err := os.Stat(p.YtDlpPath); os.IsNotExist(err) {
-		return nil, "", fmt.Errorf("yt-dlp not found at %s: %w", p.YtDlpPath, err)
+	absPath, err := filepath.Abs(p.YtDlpPath)
+	if err != nil {
+		log.Fatalf("Failed to get absolute path: %v", err)
 	}
+	cmd := exec.Command(absPath, "-U")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Error updating yt-dlp: %s\n%s", err, string(output))
+		return nil, "", err
+	}
+	fmt.Printf("yt-dlp update result: %s\n", string(output))
 
 	// Determine if the query is a URL or a search term
 	var ytQuery string

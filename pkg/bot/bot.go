@@ -74,7 +74,7 @@ func (b *Bot) HandleMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// Create audio processor
-	processor := audioProcessor.NewProcessor("cmd/yt-dlp/yt-dlp")
+	processor := audioProcessor.NewProcessor()
 
 	if strings.Contains(m.Content, "-p") {
 		// Extract the query (everything after "-p")

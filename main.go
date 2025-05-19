@@ -34,7 +34,7 @@ func main() {
 	}
 
 	// Initialize audio processor
-	processor := audioProcessor.NewProcessor("cmd/yt-dlp/yt-dlp")
+	processor := audioProcessor.NewProcessor()
 
 	// Load existing audio files into cache
 	processor.LoadAudioCache()

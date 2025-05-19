@@ -16,32 +16,23 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application
-RUN go build -o discord-youtube-bot main.go
+# Install runtime dependencies
+RUN apk add --no-cache make
 
-# Download yt-dlp
-RUN mkdir -p cmd/yt-dlp && \
-    curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o cmd/yt-dlp/yt-dlp && \
-    chmod +x cmd/yt-dlp/yt-dlp
+# Build the application
+RUN make
 
 # Final stage
 FROM alpine:latest
-
-# Install runtime dependencies
-RUN apk add --no-cache ca-certificates python3
-
-# Create audio directory
-RUN mkdir -p /app/audio
 
 # Set working directory
 WORKDIR /app
 
 # Copy binary and yt-dlp from builder stage
-COPY --from=builder /app/discord-youtube-bot .
-COPY --from=builder /app/cmd/yt-dlp/yt-dlp ./cmd/yt-dlp/
+COPY --from=builder /app/toujoubot .
 
 # Ensure yt-dlp is executable
 RUN chmod +x ./cmd/yt-dlp/yt-dlp
 
 # Run the application
-CMD ["./discord-youtube-bot"]
+CMD ["./toujoubot"]
